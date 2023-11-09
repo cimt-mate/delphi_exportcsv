@@ -1,0 +1,115 @@
+object Form1: TForm1
+  Left = 0
+  Top = 0
+  Caption = 'Form1'
+  ClientHeight = 212
+  ClientWidth = 575
+  Color = clBtnFace
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clWindowText
+  Font.Height = -12
+  Font.Name = 'Segoe UI'
+  Font.Style = []
+  OnClose = FormClose
+  OnCreate = FormCreate
+  OnShow = FormShow
+  TextHeight = 15
+  object LabelDate: TLabel
+    Left = 23
+    Top = 64
+    Width = 51
+    Height = 15
+    Caption = 'Start Date'
+  end
+  object LabelPath: TLabel
+    Left = 46
+    Top = 30
+    Width = 24
+    Height = 15
+    Caption = 'Path'
+  end
+  object LabelType: TLabel
+    Left = 46
+    Top = 105
+    Width = 24
+    Height = 15
+    Caption = 'Type'
+  end
+  object ButtonExport: TButton
+    Left = 278
+    Top = 107
+    Width = 99
+    Height = 62
+    Caption = 'Export'
+    TabOrder = 0
+    OnClick = ButtonExportClick
+  end
+  object EditOutputFolder: TEdit
+    Left = 80
+    Top = 25
+    Width = 393
+    Height = 23
+    TabOrder = 1
+  end
+  object DateTimePickerStart: TDateTimePicker
+    Left = 80
+    Top = 64
+    Width = 100
+    Height = 23
+    Date = 45238.000000000000000000
+    Time = 0.566145821758254900
+    TabOrder = 2
+  end
+  object DateTimePickerEnd: TDateTimePicker
+    Left = 200
+    Top = 64
+    Width = 100
+    Height = 23
+    Date = 45238.000000000000000000
+    Time = 0.567236030095955400
+    TabOrder = 3
+  end
+  object RadioGroupType: TRadioGroup
+    Left = 76
+    Top = 93
+    Width = 185
+    Height = 92
+    Caption = 'Type'
+    TabOrder = 4
+  end
+  object RadioButtonPlan: TRadioButton
+    Left = 99
+    Top = 118
+    Width = 113
+    Height = 17
+    Caption = 'Plan'
+    TabOrder = 5
+  end
+  object RadioButtonActual: TRadioButton
+    Left = 99
+    Top = 152
+    Width = 113
+    Height = 17
+    Caption = 'Actual'
+    TabOrder = 6
+  end
+  object ButtonOpenPath: TButton
+    Left = 479
+    Top = 24
+    Width = 49
+    Height = 25
+    Caption = 'Open'
+    TabOrder = 7
+    OnClick = ButtonOpenPathClick
+  end
+  object UniConnection: TUniConnection
+    Left = 552
+  end
+  object OracleUniProvider: TOracleUniProvider
+    Left = 520
+  end
+  object UniQuery: TUniQuery
+    Connection = UniConnection
+    Left = 488
+  end
+end

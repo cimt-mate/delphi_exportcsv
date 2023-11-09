@@ -1,0 +1,305 @@
+unit DS10EAC100;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.WinXPickers, Vcl.StdCtrls,
+  Vcl.ComCtrls, Vcl.ExtCtrls, Data.DB, MemDS, DBAccess, Uni, UniProvider, System.IniFiles,
+  OracleUniProvider;
+
+type
+  TForm1 = class(TForm)
+    ButtonExport: TButton;
+    EditOutputFolder: TEdit;
+    DateTimePickerStart: TDateTimePicker;
+    DateTimePickerEnd: TDateTimePicker;
+    LabelDate: TLabel;
+    LabelPath: TLabel;
+    RadioGroupType: TRadioGroup;
+    RadioButtonPlan: TRadioButton;
+    RadioButtonActual: TRadioButton;
+    LabelType: TLabel;
+    UniConnection: TUniConnection;
+    UniQuery: TUniQuery;
+    ButtonOpenPath: TButton;
+    OracleUniProvider1: TOracleUniProvider;
+    procedure ButtonExportClick(Sender: TObject);
+    procedure FormShow(Sender: TObject);
+    procedure ButtonOpenPathClick(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure FormCreate(Sender: TObject);
+    procedure RadioButtonPlanClick(Sender: TObject);
+    procedure RadioButtonActualClick(Sender: TObject);
+  private
+    { Private declarations }
+    procedure LoadConnectionParameters;
+    procedure LogMessage(const Msg: string);
+  public
+    { Public declarations }
+    AutoExport: Boolean;
+  end;
+
+var
+  Form1: TForm1;
+
+implementation
+
+{$R *.dfm}
+
+procedure TForm1.ButtonExportClick(Sender: TObject);
+var
+  CSVFile: TextFile;
+  i: Integer;
+  RowData: String;
+  CSVFileName: string;
+begin
+  // Validate Parameter
+  if (DateTimePickerStart.Date > DateTimePickerEnd.Date) And RadioButtonActual.Checked then
+  begin
+    if AutoExport then
+    begin
+      LogMessage('The Start Date cannot be later than the End Date');
+      Exit;
+    end
+    else
+    begin
+      // Show an error message if the Start Date is later than the End Date
+      ShowMessage('The Start Date cannot be later than the End Date.');
+      Exit; // Exit the procedure without doing the export
+    end;
+  end;
+
+  // Set up the UniConnection
+  LoadConnectionParameters;
+
+  // SQL Preparation
+  UniQuery := TUniQuery.Create(nil);
+  UniQuery.Connection := UniConnection;
+  if RadioButtonPlan.Checked then
+  begin
+    // SQL Text Generate
+    UniQuery.SQL.Text := 'SELECT * From KIKAIMST';
+
+    // Prepare CSV file
+    CSVFileName := EditOutputFolder.Text + '\DS10EAC100_Plan.csv';
+  end
+  else
+  begin
+    // SQL Text Generate
+    UniQuery.SQL.Text := 'SELECT kmseqno,seizono,jkikaicd,jtantocd,jymds,jymde FROM keikakujwmst WHERE jymds BETWEEN :StartDate AND :EndDate';
+    // Set Date Parameter for actual data
+    UniQuery.Params.ParamByName('StartDate').AsDate := DateTimePickerStart.Date;
+    UniQuery.Params.ParamByName('EndDate').AsDate := DateTimePickerEnd.Date;
+
+    // Prepare CSV file
+    CSVFileName := EditOutputFolder.Text + '\DS10EAC100_Act.csv';
+  end;
+  // Execute SQL
+  UniQuery.Open;
+
+
+  AssignFile(CSVFile, CSVFileName);
+  Rewrite(CSVFile);
+
+  // Write the headers
+  for i := 0 to UniQuery.FieldCount - 1 do
+  begin
+    RowData := RowData + UniQuery.Fields[i].FieldName;
+    if i < UniQuery.FieldCount - 1 then
+      RowData := RowData + ',';
+  end;
+  Writeln(CSVFile, RowData);
+
+  // Write the data
+  while not UniQuery.Eof do
+  begin
+    RowData := '';
+    for i := 0 to UniQuery.FieldCount - 1 do
+    begin
+      RowData := RowData + UniQuery.Fields[i].AsString;
+      if i < UniQuery.FieldCount - 1 then
+        RowData := RowData + ',';
+    end;
+    Writeln(CSVFile, RowData);
+    UniQuery.Next;
+  end;
+
+  // Close CSV file
+  CloseFile(CSVFile);
+  // Write Log Message
+  LogMessage('Exported with row count: ' + IntToStr(UniQuery.RecordCount));
+end;
+
+procedure TForm1.ButtonOpenPathClick(Sender: TObject);
+begin
+  var Dialog := TFileOpenDialog.Create(nil);
+  try
+    Dialog.Options := Dialog.Options + [fdoPickFolders];
+    if Dialog.Execute then
+      EditOutputFolder.Text := Dialog.FileName;
+  finally
+    Dialog.Free;
+  end;
+end;
+
+procedure TForm1.FormClose(Sender: TObject; var Action: TCloseAction);
+var
+  IniFile: TIniFile;
+  IniFileName: string;
+begin
+  IniFileName := ExtractFilePath(Application.ExeName) + 'DS10EAC100.ini';
+  IniFile := TIniFile.Create(IniFileName);
+  try
+    IniFile.WriteString('Settings', 'Path', EditOutputFolder.Text);
+    IniFile.WriteString('Settings', 'StartDate', FormatDateTime('yyyy/mm/dd', DateTimePickerStart.Date));
+    IniFile.WriteString('Settings', 'EndDate', FormatDateTime('yyyy/mm/dd', DateTimePickerEnd.Date));
+
+    if RadioButtonPlan.Checked then
+      IniFile.WriteString('Settings', 'Type', 'Plan')
+    else if RadioButtonActual.Checked then
+      IniFile.WriteString('Settings', 'Type', 'Actual');
+
+    // You can continue saving other settings as needed.
+  finally
+    IniFile.Free;
+  end;
+end;
+
+procedure TForm1.FormCreate(Sender: TObject);
+var
+  IniFile: TIniFile;
+  IniFileName: string;
+begin
+  // Read ini file
+  IniFileName := ExtractFilePath(Application.ExeName) + 'DS10EAC100.ini';
+  IniFile := TIniFile.Create(IniFileName);
+  try
+    EditOutputFolder.Text := IniFile.ReadString('Settings', 'Path', '');
+    DateTimePickerStart.Date := StrToDateDef(IniFile.ReadString('Settings', 'StartDate', FormatDateTime('yyyy/mm/dd', Date)), Date);
+    DateTimePickerEnd.Date := StrToDateDef(IniFile.ReadString('Settings', 'EndDate', FormatDateTime('yyyy/mm/dd', Date)), Date);
+
+    if IniFile.ReadString('Settings', 'Type', 'Plan') = 'Plan' then
+      RadioButtonPlan.Checked := True
+    else
+      RadioButtonActual.Checked := True;
+
+    // Initialize other settings as needed.
+  finally
+    IniFile.Free;
+  end;
+end;
+
+
+procedure TForm1.FormShow(Sender: TObject);
+var
+//  Monitor: TMonitor;
+  i: Integer;
+begin
+  AutoExport := False;
+
+  // Check if the command line parameter 'AUTO' is provided
+  for i := 1 to ParamCount do
+  begin
+    if UpperCase(ParamStr(i)) = '/AUTO' then
+    begin
+      AutoExport := True;
+      Break;
+    end;
+  end;
+
+  if AutoExport then
+  begin
+    ButtonExportClick(Self); // Simulate the export button click
+    Self.Close;
+    Application.Terminate;
+  end;
+//  if Screen.MonitorCount > 1 then
+//    begin
+//      // Try to use the secondary monitor
+//      // Screen.Monitors[0] is the primary monitor, Screen.Monitors[1] would be the secondary, and so on.
+//      Monitor := Screen.Monitors[1];
+//
+//      // Position the form at the top-left corner of the secondary monitor
+//      Left := Monitor.Left;
+//      Top := Monitor.Top;
+//    end
+//  else
+//    begin
+//    // If there's only one monitor, center the form on it
+//    Left := (Screen.Width - Width) div 2;
+//    Top := (Screen.Height - Height) div 2;
+//    end;
+end;
+
+
+procedure TForm1.RadioButtonActualClick(Sender: TObject);
+begin
+  DateTimePickerStart.Visible := True;
+  DateTimePickerEnd.Visible := True;
+  LabelDate.Visible	:= True;
+end;
+
+procedure TForm1.RadioButtonPlanClick(Sender: TObject);
+begin
+  DateTimePickerStart.Visible := False;
+  DateTimePickerEnd.Visible := False;
+  LabelDate.Visible	:= False;
+end;
+
+// Non Event Procedure Zone
+procedure TForm1.LoadConnectionParameters;
+var
+  IniFile: TIniFile;
+  FileName: string;
+  // Can't declare Username, Password *Conflict with UnitConnection Variable Name
+  DirectDBName, User, Pass: string;
+
+begin
+  FileName := ExtractFilePath(Application.ExeName) + '/Setup/SetUp.Ini'; // Assumes the INI file is in the same directory as the application
+  IniFile := TIniFile.Create(FileName);
+  try
+
+    DirectDBName := IniFile.ReadString('Setting', 'DIRECTDBNAME', '');
+    User := IniFile.ReadString('Setting', 'USERNAME', '');
+    Pass := IniFile.ReadString('Setting', 'PASSWORD', '');
+
+    with UniConnection do
+    begin
+      if not Connected then
+      begin
+        ProviderName := 'Oracle';
+        SpecificOptions.Values['Direct'] := 'True';
+        Server := DirectDBName;
+        Username := User;
+        Password := Pass;
+        Connect; // Establish the connection
+      end;
+    end;
+  finally
+    IniFile.Free; // Always free the TIniFile object when done
+  end;
+end;
+
+procedure TForm1.LogMessage(const Msg: string);
+var
+  LogFile: TextFile;
+  FileName: string;
+begin
+  FileName :=  ExtractFilePath(Application.ExeName) + 'DS10EAC100.log';
+  AssignFile(LogFile, FileName);
+
+  if not FileExists(FileName) then
+    Rewrite(LogFile)
+  else
+    Append(LogFile);
+
+  try
+    WriteLn(LogFile, Format('%s - %s', [DateTimeToStr(Now), Msg]));
+  finally
+    CloseFile(LogFile);
+  end;
+end;
+
+
+end.
