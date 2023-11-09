@@ -18,7 +18,7 @@ object Form1: TForm1
     Left = 23
     Top = 167
     Width = 51
-    Height = 17
+    Height = 15
     Caption = 'Start Date'
   end
   object LabelPath: TLabel
