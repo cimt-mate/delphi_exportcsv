@@ -34,7 +34,7 @@ type
   private
     { Private declarations }
     procedure LoadConnectionParameters;
-    procedure LogMessage;
+    procedure LogMessage(const Msg: string);
   public
     { Public declarations }
     AutoExport: Boolean;
@@ -53,20 +53,23 @@ var
   i: Integer;
   RowData: String;
   CSVFileName: string;
+  DateTimeFormat: string;
 begin
+  // Define the datetime format for the filename
+  DateTimeFormat := 'yyyymmdd_hhnn';
   // Validate Parameter
   if (DateTimePickerStart.Date > DateTimePickerEnd.Date) And RadioButtonActual.Checked then
   begin
     if AutoExport then
     begin
-
+      LogMessage('The Start Date cannot be later than the End Date');
       Exit;
     end
     else
     begin
-          // Show an error message if the Start Date is later than the End Date
-    ShowMessage('The Start Date cannot be later than the End Date.');
-    Exit; // Exit the procedure without doing the export
+      // Show an error message if the Start Date is later than the End Date
+      ShowMessage('The Start Date cannot be later than the End Date.');
+      Exit; // Exit the procedure without doing the export
     end;
   end;
 
@@ -82,7 +85,7 @@ begin
     UniQuery.SQL.Text := 'SELECT * From KIKAIMST';
 
     // Prepare CSV file
-    CSVFileName := EditOutputFolder.Text + '\DS10EAC100_Plan.csv';
+    CSVFileName := EditOutputFolder.Text + '\DS10EAC100_Plan_' + FormatDateTime(DateTimeFormat, Now)  +'.csv';
   end
   else
   begin
@@ -93,7 +96,7 @@ begin
     UniQuery.Params.ParamByName('EndDate').AsDate := DateTimePickerEnd.Date;
 
     // Prepare CSV file
-    CSVFileName := EditOutputFolder.Text + '\DS10EAC100_Act.csv';
+    CSVFileName := EditOutputFolder.Text + '\DS10EAC100_Act_' + FormatDateTime(DateTimeFormat, Now) + '.csv';
   end;
   // Execute SQL
   UniQuery.Open;
@@ -127,6 +130,8 @@ begin
 
   // Close CSV file
   CloseFile(CSVFile);
+  // Write Log Message
+  LogMessage('Exported with row count: ' + IntToStr(UniQuery.RecordCount));
 end;
 
 procedure TForm1.ButtonOpenPathClick(Sender: TObject);
@@ -195,12 +200,12 @@ var
   i: Integer;
 begin
   AutoExport := False;
-
   // Check if the command line parameter 'AUTO' is provided
   for i := 1 to ParamCount do
   begin
     if UpperCase(ParamStr(i)) = '/AUTO' then
     begin
+      LogMessage('AUTO Detect');
       AutoExport := True;
       Break;
     end;
@@ -208,7 +213,6 @@ begin
 
   if AutoExport then
   begin
-    LogMessage('Application started in AUTO mode.');
     ButtonExportClick(Self); // Simulate the export button click
     Self.Close;
     Application.Terminate;
