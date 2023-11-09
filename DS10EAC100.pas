@@ -200,6 +200,7 @@ var
   i: Integer;
 begin
   AutoExport := False;
+  ShowMessage('Merge me!');
   // Check if the command line parameter 'AUTO' is provided
   for i := 1 to ParamCount do
   begin
